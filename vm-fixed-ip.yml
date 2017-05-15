@@ -1,0 +1,92 @@
+heat_template_version: newton
+
+description: >
+  Template to create an Test VM
+
+parameters:
+  image:
+    type: string
+    description: Name of image to use for servers
+    default: ubuntu-server-16.04
+  flavor:
+    type: string
+    description: Flavor to use for servers
+    default: m1.small
+  ssh_key:
+    type: string
+    description: Name of an existing key pair to use for the instance
+  availability_zone:
+    type: string
+    description: Availability Zone (emea:os-compute-09)
+  name:
+    type: string
+    description: Name of the virtual machine
+  dmz_net:
+    type: string
+    description: Name of the DMZ network
+  dmz_subnet:
+    type: string
+    description: Subnet on the office-dmz Network
+  dmz_port_name:
+    type: string
+    description: Port Name
+  security_groups:
+    type: comma_delimited_list
+    default: 'default,'
+    description: Security Group to apply
+  fix_ip:
+    type: string
+    description: Fix IP of the VM
+  minion_id:
+    type: string
+    description: ID of the minion (fqdn)
+  salt_master:
+    type: string
+    description: Salt Master
+    default: salt-master.totoro.com
+
+resources:
+
+  instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: image   }
+      flavor: { get_param: flavor }
+      name: { get_param: name }
+      key_name: { get_param: ssh_key }
+      availability_zone: { get_param: availability_zone }
+      config_drive: True
+      networks:
+        - port: { get_resource: dmz_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          params:
+            __salt_master__: { get_param: salt_master }
+            __minion_id__: { get_param: minion_id }
+          template: |
+            #cloud-config
+            manage-resolv-conf: true
+            manage_etc_hosts: true
+            bootcmd:
+             - echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolvconf/resolv.conf.d/head
+             - resolvconf -u
+             - sed -i 's,novalocal,totoro.com,g' /etc/hosts
+            package_update: true
+            package_upgrade: true
+            cloud_config_modules:
+             - salt-minion
+            salt_minion:
+             conf:
+               master: __salt_master__
+               id: __minion_id__
+
+  dmz_port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_param: dmz_net }
+      name: { get_param: dmz_port_name }
+      fixed_ips:
+        - ip_address: { get_param: fix_ip }
+          subnet: { get_param: dmz_subnet }
+      security_groups: { get_param: security_groups }
