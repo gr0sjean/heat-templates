@@ -1,2 +1,3 @@
 # heat-templates
-# heat-templates
+
+* Sample Heat templates
