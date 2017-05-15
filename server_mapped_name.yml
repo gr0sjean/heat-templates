@@ -1,0 +1,77 @@
+heat_template_version: 2015-04-30
+
+parameters:
+  name_map:
+    type: json
+  network:
+    type: string
+  subnet:
+    type: string
+  ip_map:
+    type: json
+  port_map:
+    type: json
+  security_group:
+    type: comma_delimited_list
+  avaibility_zone_map:
+    type: json
+  index:
+    type: string
+  domain:
+    type: string
+  image:
+    type: string
+  flavor:
+    type: string
+  ssh_key:
+    type: string
+  admin_pass:
+    type: string
+    default: totoro
+
+resources:
+ server:
+    type: OS::Nova::Server
+    properties:
+      flavor: { get_param: flavor }
+      image: { get_param: image }
+      key_name: { get_param: ssh_key }
+      admin_pass: { get_param: admin_pass }
+      name: { get_param: [name_map, { get_param: index }] }
+      availability_zone: { get_param: [avaibility_zone_map, { get_param: index }] }
+      networks:
+      - port: { get_resource: port }
+      config_drive: True
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #cloud-config
+            manage_etc_hosts: true
+            bootcmd:
+             - echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolvconf/resolv.conf.d/head
+             - resolvconf -u
+             - sed -i 's,openstacklocal,totoro.com,g' /etc/resolv.conf
+            package_update: true
+            package_upgrade: true
+            packages:
+             - htop
+            cloud_config_modules:
+             - salt-minion
+            salt_minion:
+             conf:
+              master: salt-internal-01.hq.unity3d.com
+              id: %name%.%domain%
+          params:
+            '%name%': { get_param: [name_map, { get_param: index }] }
+            '%domain%': { get_param: domain }
+
+ port:
+   type: OS::Neutron::Port
+   properties:
+     network: { get_param: network }
+     name: { get_param: [port_map, { get_param: index }] }
+     fixed_ips:
+       - ip_address: { get_param: [ip_map, { get_param: index }] }
+         subnet: { get_param: subnet }
+     security_groups: { get_param: security_group }

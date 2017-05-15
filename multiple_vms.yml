@@ -1,0 +1,66 @@
+heat_template_version: newton
+
+parameters:
+  HostnameMap:
+    type: json
+    default:
+      '0': name-1
+      '1': name-2
+  Network:
+    type: string
+    default: office-net
+  Subnet:
+    type: string
+    default: id_of_the_subnet
+  IpMap:
+    type: json
+    default:
+      '0': ip_vm_1
+      '1': ip_vm_2
+  PortMap:
+    type: json
+    default:
+      '0': name_of_port_vm_1
+      '1': name_of_port_vm_2
+  SecurityGroup:
+    type: comma_delimited_list
+    default: 'default-enforced,dns-enforced'
+  AvaibilityZoneMap:
+    type: json
+    default:
+      '0': availability_zone:os-compute-xx
+      '1': availability_zone:os-compute-xx
+  flavor:
+    type: string
+    default: m1.small
+  image:
+    type: string
+    default: ubuntu-server-16.04
+  ssh_key:
+    type: string
+    default: toto
+  domain:
+    type: string
+    default: totoro.com
+
+resources:
+
+ dhcp:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: 2
+      resource_def:
+        type: server_mapped_name.yaml
+        properties:
+          image: { get_param: image }
+          flavor: { get_param: flavor }
+          ssh_key: { get_param: ssh_key }
+          name_map: { get_param: HostnameMap }
+          network: { get_param: Network }
+          subnet: { get_param: Subnet }
+          ip_map: { get_param: IpMap }
+          port_map: { get_param: PortMap }
+          security_group: { get_param: SecurityGroup }
+          avaibility_zone_map: { get_param: AvaibilityZoneMap }
+          domain: { get_param: domain }
+          index: '%index%'
