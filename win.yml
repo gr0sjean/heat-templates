@@ -1,0 +1,89 @@
+heat_template_version: newton
+
+description: >
+  Template to create an Test VM
+
+parameters:
+  image:
+    type: string
+    description: Name of image to use for servers
+    default: WS2012R2
+  flavor:
+    type: string
+    description: Flavor to use for servers
+    default: m1.small
+  ssh_key:
+    type: string
+    description: Ssh Key
+  password:
+    type: string
+    description: Admin password
+    hidden: True
+  availability_zone:
+    type: string
+    description: Availability Zone (emea-01:os-compute-09)
+  name:
+    type: string
+    description: Name of the virtual machine
+  dmz_net:
+    type: string
+    description: Name of the DMZ network
+  dmz_port_name:
+    type: string
+    description: Port Name
+  security_groups:
+    type: comma_delimited_list
+    default: 'default-win,'
+#  minion_id:
+#    type: string
+#    description: ID of the minion (fqdn)
+  salt_master:
+    type: string
+    description: Salt Master
+    default: salt-master.totoro.com
+
+resources:
+
+  salt_agent_main:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: ungrouped
+      config:
+        str_replace:
+          template: { get_file: SaltAgent.ps1 }
+          params:
+            salt_master_server_hostname:
+              { get_param: salt_master }
+
+  salt_agent_init:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+        [ {
+            filename: "cfn-userdata",
+            subtype: "x-cfninitdata",
+            config: { get_resource: salt_agent_main }
+          }
+        ]
+
+  instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: image   }
+      flavor: { get_param: flavor }
+      name: { get_param: name }
+      key_name: { get_param: ssh_key }
+      availability_zone: { get_param: availability_zone }
+      config_drive: True
+      networks:
+        - port: { get_resource: dmz_port }
+      admin_pass: { get_param: password }
+      user_data_format: RAW
+      user_data: { get_resource: salt_agent_init }
+
+  dmz_port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_param: dmz_net }
+      name: { get_param: dmz_port_name }
+      security_groups: { get_param: security_groups }
