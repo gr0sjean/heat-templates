@@ -1,0 +1,82 @@
+heat_template_version: newton
+
+description: >
+  Template to create a Basic Subnet
+
+parameters:
+
+  office_guest_net_name:
+    type: string
+    description: Name of the Network
+  office_guest_cidr:
+    type: string
+    description: Subnet in cidr notation
+  office_guest_subnet_name:
+    type: string
+    description: Subnet Name
+  office_guest_phy:
+    type: string
+    description: Name of the physical interface to map the network
+
+  office_dmz_net_name:
+    type: string
+    description: Name of the Network
+  office_dmz_cidr:
+    type: string
+    description: Subnet in cidr notation
+  office_dmz_gw_ip:
+    type: string
+    description: Default route to use in the subnet
+  office_dmz_subnet_name:
+    type: string
+    description: Subnet Name
+  office_dmz_phy:
+    type: string
+    description: Name of the physical interface to map the network
+  office_dmz_start_ip:
+    type: string
+    description: Start ip for allocation pool
+  office_dmz_end_ip:
+    type: string
+    description: End ip for the allocqtion pool
+  office_dmz_dns:
+    type: comma_delimited_list
+    description: Dns of the subnet
+
+resources:
+
+  office_guest_net:
+    type: OS::Neutron::ProviderNet
+    properties:
+      name: { get_param: office_guest_net_name }
+      network_type: flat
+      shared: False
+      physical_network: { get_param: office_guest_phy }
+
+  office_guest_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: { get_resource: office_guest_net }
+      cidr: { get_param: office_guest_cidr }
+      enable_dhcp: False
+      gateway_ip: null
+      name: { get_param: office_guest_subnet_name }
+
+  office_dmz_net:
+    type: OS::Neutron::ProviderNet
+    properties:
+      name: { get_param: office_dmz_net_name }
+      network_type: flat
+      shared: False
+      physical_network: { get_param: office_dmz_phy }
+
+  office_dmz_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: { get_resource: office_dmz_net }
+      cidr: { get_param: office_dmz_cidr }
+      enable_dhcp: True
+      gateway_ip: { get_param: office_dmz_gw_ip }
+      allocation_pools: [{"start": { get_param: office_dmz_start_ip }, "end": { get_param: office_dmz_end_ip }}]
+      dns_nameservers: { get_param: office_dmz_dns }
+      name: { get_param: office_dmz_subnet_name }
